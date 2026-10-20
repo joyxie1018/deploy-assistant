@@ -29,6 +29,9 @@ jobs:
           rm -rf bge-small-zh-v1.5/.cache
           zip -r dl/bge-small-zh-v1.5.zip bge-small-zh-v1.5
 
+      - name: Mirror llama.cpp (Windows CPU)
+        run: gh release download --repo ggml-org/llama.cpp --pattern "llama-*-bin-win-cpu-x64.zip" --dir dl
+
       - name: Checksums
         run: cd dl && sha256sum * > SHA256SUMS.txt
 
