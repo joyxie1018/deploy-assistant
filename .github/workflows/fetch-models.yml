@@ -1,0 +1,38 @@
+name: fetch-models
+on: workflow_dispatch
+permissions:
+  contents: write
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install downloader
+        run: pip install -U huggingface_hub
+
+      - name: Download LLM (Qwen3.5 2B, Q4_K_M, 約 1.3GB)
+        run: |
+          mkdir -p dl
+          hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q4_K_M.gguf --local-dir tmp_llm
+          mv tmp_llm/Qwen3.5-2B-Q4_K_M.gguf dl/
+
+      - name: Download Embedding (bge-small-zh-v1.5)
+        run: |
+          hf download BAAI/bge-small-zh-v1.5 --local-dir bge-small-zh-v1.5 \
+            --exclude "onnx/*" "*.onnx" "*.h5" "*.ot" "*.msgpack" "pytorch_model.bin"
+          rm -rf bge-small-zh-v1.5/.cache
+          zip -r dl/bge-small-zh-v1.5.zip bge-small-zh-v1.5
+
+      - name: Checksums
+        run: cd dl && sha256sum * > SHA256SUMS.txt
+
+      - name: Publish release
+        run: |
+          gh release create models-v1 dl/* -t "models" -n "model files" \
+          || gh release upload models-v1 dl/* --clobber
