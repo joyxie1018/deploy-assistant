@@ -1,4 +1,4 @@
-name: fetch-models
+name: fetch-models-v2
 on: workflow_dispatch
 permissions:
   contents: write
@@ -12,30 +12,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - run: pip install -U huggingface_hub
 
-      - name: Install downloader
-        run: pip install -U huggingface_hub
-
-      - name: Download LLM (Qwen3.5 2B, Q4_K_M, 約 1.3GB)
+      - name: Download Qwen3-1.7B (約 1.3GB)
         run: |
           mkdir -p dl
-          hf download unsloth/Qwen3.5-2B-GGUF Qwen3.5-2B-Q4_K_M.gguf --local-dir tmp_llm
-          mv tmp_llm/Qwen3.5-2B-Q4_K_M.gguf dl/
+          hf download unsloth/Qwen3-1.7B-GGUF --include "*Q4_K_M.gguf" --local-dir t17
+          mv t17/*Q4_K_M.gguf dl/
 
-      - name: Download Embedding (bge-small-zh-v1.5)
+      - name: Download Qwen3-4B-Instruct-2507 (約 2.3GB，需切檔)
         run: |
-          hf download BAAI/bge-small-zh-v1.5 --local-dir bge-small-zh-v1.5 \
-            --exclude "onnx/*" "*.onnx" "*.h5" "*.ot" "*.msgpack" "pytorch_model.bin"
-          rm -rf bge-small-zh-v1.5/.cache
-          zip -r dl/bge-small-zh-v1.5.zip bge-small-zh-v1.5
-
-      - name: Mirror llama.cpp (Windows CPU)
-        run: gh release download --repo ggml-org/llama.cpp --pattern "llama-*-bin-win-cpu-x64.zip" --dir dl
+          hf download unsloth/Qwen3-4B-Instruct-2507-GGUF --include "*Q4_K_M.gguf" --local-dir t4
+          cd t4
+          f=$(ls *Q4_K_M.gguf)
+          split -b 1900M -d "$f" "../dl/$f.part"
 
       - name: Checksums
         run: cd dl && sha256sum * > SHA256SUMS.txt
 
       - name: Publish release
         run: |
-          gh release create models-v1 dl/* -t "models" -n "model files" \
-          || gh release upload models-v1 dl/* --clobber
+          gh release create models-v2 dl/* -t "models-v2" -n "model files v2" \
+          || gh release upload models-v2 dl/* --clobber
